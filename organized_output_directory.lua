@@ -51,6 +51,8 @@ local DEFAULT_SCREENSHOT_SUB_DIR = "screenshots"
 local DEFAULT_REPLAY_SUB_DIR = "replays"
 local DEFAULT_RECORDING_SUB_DIR = "recordings"
 local DEFAULT_MOVE_RECORDINGS = true
+local DEFAULT_ASCII_FILTER = true
+local DEFAULT_APPEND_GAME_NAME = true
 local DEFAULT_NAME_SOURCE = name_source_enum["Window Title"]
 local DEFAULT_FILE_NAME_WILDCARD = WILDCARD_ORIGINAL_FILE_NAME
 local DEFAULT_FOLDER_NAME_WILDCARD = WILDCARD_WINDOW_TITLE_ASCII
@@ -60,6 +62,8 @@ local SCREENSHOT_SUB_DIR = "SCREENSHOT_SUB_DIR"
 local REPLAY_SUB_DIR = "REPLAY_SUB_DIR"
 local RECORDING_SUB_DIR = "RECORDING_SUB_DIR"
 local BOOL_MOVE_RECORDING = "MOVE_RECORDINGS"
+local BOOL_ASCII_ONLY = "ASCII_ONLY"
+local BOOL_APPEND_GAME_NAME = "APPEND_NAME"
 local NAME_SOURCE = "NAME_SOURCE"
 local OUTPUT_RENAME_WILDCARD = "WILD_CARDS"
 
@@ -73,6 +77,8 @@ local cfg_name_source
 local cfg_output_wildcards
 -- bools
 local cfg_move_recordings
+local cfg_ascii_filter
+local cfg_append_name
 
 -- grab OBS's lua script global object
 local obs = obslua
@@ -132,8 +138,8 @@ function script_properties()
     for name, value in pairs(name_source_enum) do
         obs.obs_property_list_add_int(props_name_source, name, value)
     end
-
-    obs.obs_properties_add_text(props, OUTPUT_RENAME_WILDCARD, "File Rename", obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_bool(props, BOOL_ASCII_ONLY, "Allow only Ascii characters")
+    obs.obs_properties_add_bool(props, BOOL_APPEND_GAME_NAME, "Insert Game Name into output")
 
     return props
 end
@@ -169,6 +175,8 @@ function script_defaults(settings)
 
     -- bools
     obs.obs_data_set_default_bool(settings, BOOL_MOVE_RECORDING, DEFAULT_MOVE_RECORDINGS)
+    obs.obs_data_set_default_bool(settings, BOOL_ASCII_ONLY, DEFAULT_ASCII_FILTER)
+    obs.obs_data_set_default_bool(settings, BOOL_APPEND_GAME_NAME, DEFAULT_APPEND_GAME_NAME)
 
     -- lists
     obs.obs_data_set_default_int(settings, NAME_SOURCE, DEFAULT_NAME_SOURCE)
