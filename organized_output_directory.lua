@@ -1,5 +1,5 @@
 local SCRIPT_NAME = "Organized Output Directory"
-local VERSION_STRING = "1.0.3"
+local VERSION_STRING = "1.0.2"
 
 -- requirements
 local OPERATING_SYSTEM_REQUIREMENTS = {"Windows 10/11"}
