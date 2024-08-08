@@ -5,6 +5,7 @@ local VERSION_STRING = "1.0.2"
 local OPERATING_SYSTEM_REQUIREMENTS = {"Windows 10/11"}
 local OBS_VERSION_REQUIREMENT = "29.0.0"
 
+-- URLs
 local GITHUB_PROJECT_URL = "https://github.com/MrMartin92/obs_organized_output_directory"
 local GITHUB_PROJECT_LICENCE_URL = "https://raw.githubusercontent.com/MrMartin92/obs_organized_output_directory/main/LICENSE"
 local GITHUB_PROJECT_BUG_TRACKER_URL = GITHUB_PROJECT_URL .. "/issues"
@@ -12,6 +13,7 @@ local GITHUB_AUTHOR_URL = "https://github.com/MrMartin92"
 local TWITCH_AUTHOR_URL = "https://twitch.tv/MrMartin_"
 local KOFI_URL = "https://ko-fi.com/MrMartin_"
 
+-- Which setting to set folder name from
 local name_source_enum = {
     ["Window Title"] = 0,
     ["Process Name"] = 1
@@ -36,8 +38,12 @@ local cfg_name_source
 local obs = obslua
 
 function script_description()
+    -- Script description
+
+    -- Grabs the list of operating systems and turns them into one string
     operating_systems_string = table.concat(OPERATING_SYSTEM_REQUIREMENTS, ", ")
 
+    -- Final script description
     return "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
     "With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \n" ..
     "The script automatically creates subdirectories for each game in the output directory. \n" ..
@@ -79,6 +85,7 @@ end
 
 function script_update(settings)
     print("script_update()")
+    -- Updates settings when variables are changed in OBS
 
     cfg_screenshot_sub_dir = obs.obs_data_get_string(settings, "SCREENSHOT_SUB_DIR")
     cfg_replay_sub_dir = obs.obs_data_get_string(settings, "REPLAY_SUB_DIR")
@@ -92,6 +99,7 @@ end
 
 function script_defaults(settings)
     print("script_defaults()")
+    -- Sets default settings for the script in OBS
 
     obs.obs_data_set_default_string(settings, "SCREENSHOT_SUB_DIR", DEFAULT_SCREENSHOT_SUB_DIR)
     obs.obs_data_set_default_string(settings, "REPLAY_SUB_DIR", DEFAULT_REPLAY_SUB_DIR)
@@ -165,6 +173,14 @@ end
 
 function increment_filename(path)
     print("increment_filename()")
+    -- If a file name exists, increment the file name
+    --[[ 
+    eg: 
+        filename(d).ext
+        filename.ext --> filename(1).ext
+        filename(9).ext --> filename(10).ext 
+    ]]
+
     -- Split the filename into the name and extension
     local name, ext = filename:match("^(.-)(%.[^%.]*)$")
     
@@ -198,19 +214,20 @@ local function move_file(src, dst)
     else
         print("File aready exist at the destination! Increment the file and try again")
         dst = increment_filename(dst)
-        -- recurse
+        -- recurse, try new file path name
         move_file(src, dst)
     end
 end
 
-local function sanitize_path_string(path)
+local function sanitize_sub_directory_for_windows(path)
+    -- sanatize path string for windows
     path = string.gsub(path, "^ +", "") -- Remove leading whitespaces
     path = string.gsub(path, " +$", "") -- Remove trailing whitespaces
     path = string.gsub(path, "[<>:\\/\"|?*]", "") -- Remove illigal path characters for Windows
     return path
 end
 
-local function filter_ascii(input)
+local function sanitize_string_for_ascii(input)
     -- Remove all non-ASCII alphanumeric characters and spaces
     local cleaned = input:gsub("[^%w%s]", " ")
     -- Replace multiple spaces with a single space
@@ -242,6 +259,7 @@ end
 
 local function base_event(file_path,sub_dir)
     print("base_event()")
+    -- Moves a given file to a new sub directory
 
     local game_name = get_game_name()
 
@@ -250,10 +268,10 @@ local function base_event(file_path,sub_dir)
     end
 
     if cfg_ascii_filter then
-        game_name = filter_ascii(game_name)
+        game_name = sanitize_string_for_ascii(game_name)
     end
 
-    local new_file_path = get_base_path(file_path) .. sanitize_path_string(game_name) .. "/" .. sanitize_path_string(sub_dir) .. "/".. get_filename(file_path)
+    local new_file_path = get_base_path(file_path) .. sanitize_sub_directory_for_windows(game_name) .. "/" .. sanitize_sub_directory_for_windows(sub_dir) .. "/".. get_filename(file_path)
 
     move_file(file_path, new_file_path)
 end
