@@ -1,5 +1,5 @@
 local SCRIPT_NAME = "Organized Output Directory"
-local VERSION_STRING = "1.0.2"
+local VERSION_STRING = "1.0.3"
 
 -- requirements
 local OPERATING_SYSTEM_REQUIREMENTS = { "Windows 10/11" }
@@ -14,10 +14,31 @@ local GITHUB_AUTHOR_URL = "https://github.com/MrMartin92"
 local TWITCH_AUTHOR_URL = "https://twitch.tv/MrMartin_"
 local KOFI_URL = "https://ko-fi.com/MrMartin_"
 
+-- wildcards
+local WILDCARD_WINDOW_TITLE = "%%w"
+local WILDCARD_WINDOW_TITLE_ASCII = "%%wa"
+local WIDLCARD_EXECUTABLE = "%%e"
+local WIDLCARD_EXECUTABLE_ASCII = "%%ea"
+local WILDCARD_ORIGINAL_FILE_NAME = "%%o"
+
+-- WildCard replacements
+local replacements = {
+    [WILDCARD_WINDOW_TITLE]       = "window_title",
+    [WILDCARD_WINDOW_TITLE_ASCII] = "window_title_ascii",
+    [WIDLCARD_EXECUTABLE]         = "executable_title",
+    [WIDLCARD_EXECUTABLE_ASCII]   = "executable_title_ascii",
+    [WILDCARD_ORIGINAL_FILE_NAME] = "original_name"
+}
+
+-- enum variables
+local ENUM_WINDOW_TITLE = "Window Title"
+local ENUM_PROCESS_NAME = "Process Name"
+
+
 -- Which setting to set folder name from
 local name_source_enum = {
-    ["Window Title"] = 0,
-    ["Process Name"] = 1,
+    [ENUM_WINDOW_TITLE] = 0,
+    [ENUM_PROCESS_NAME] = 1,
 }
 
 -- Default values for the script
@@ -25,18 +46,18 @@ local DEFAULT_SCREENSHOT_SUB_DIR = "screenshots"
 local DEFAULT_REPLAY_SUB_DIR = "replays"
 local DEFAULT_RECORDING_SUB_DIR = "recordings"
 local DEFAULT_MOVE_RECORDINGS = true
-local DEFAULT_ASCII_FILTER = true
-local DEFAULT_APPEND_GAME_NAME = true
 local DEFAULT_NAME_SOURCE = name_source_enum["Window Title"]
+local DEFAULT_FILE_NAME_WILDCARD = WILDCARD_ORIGINAL_FILE_NAME
+local DEFAULT_FOLDER_NAME_WILDCARD = WILDCARD_WINDOW_TITLE_ASCII
 
 -- GUI settings
 local SCREENSHOT_SUB_DIR = "SCREENSHOT_SUB_DIR"
 local REPLAY_SUB_DIR = "REPLAY_SUB_DIR"
 local RECORDING_SUB_DIR = "RECORDING_SUB_DIR"
 local BOOL_MOVE_RECORDING = "MOVE_RECORDINGS"
-local BOOL_ASCII_ONLY = "ASCII_ONLY"
-local BOOL_APPEND_GAME_NAME = "APPEND_NAME"
 local NAME_SOURCE = "NAME_SOURCE"
+local OUTPUT_RENAME_WILDCARD = "WILD_CARDS"
+
 
 -- cfg short for config short for congifuration
 -- strings
@@ -44,10 +65,9 @@ local cfg_screenshot_sub_dir
 local cfg_replay_sub_dir
 local cfg_recording_sub_dir
 local cfg_name_source
+local cfg_output_wildcards
 -- bools
 local cfg_move_recordings
-local cfg_ascii_filter
-local cfg_append_name
 
 -- grab OBS's lua script global object
 local obs = obslua
@@ -72,10 +92,18 @@ function script_description()
         GITHUB_AUTHOR_URL .. "\">[GitHub]</a> <a href=\"" .. TWITCH_AUTHOR_URL .. "\">[Twitch]</a><br>\n" ..
         "<b>🔬 Source:</b> <a href=\"" .. GITHUB_PROJECT_URL .. "\">GitHub.com</a><br>\n" ..
         "<b>🧾 Licence:</b> <a href=\"" .. GITHUB_PROJECT_LICENCE_URL .. "\">MIT</a><br>\n" ..
-        "<b>📋 Requirements:</b><br>" ..
+        "<b>📋 Requirements:</b>" ..
         "<blockquote>" ..
         "Operating Systems: " .. operating_systems_string .. "<br>" ..
         "OBS Version: " .. OBS_VERSION_REQUIREMENT .. "<br>" ..
+        "</blockquote><br>" ..
+        "<b>🃏 Wildcards:</b>" ..
+        "<blockquote>" ..
+        WILDCARD_WINDOW_TITLE .. "Window Title" ..
+        WILDCARD_WINDOW_TITLE_ASCII .. "Window Title ASCII only" ..
+        WIDLCARD_EXECUTABLE .. "Executable Title" ..
+        WIDLCARD_EXECUTABLE_ASCII .. "Executable Title ASCII only" ..
+        WILDCARD_ORIGINAL_FILE_NAME .. "Original Output File Name" ..
         "</blockquote>"
 end
 
@@ -99,8 +127,8 @@ function script_properties()
     for name, value in pairs(name_source_enum) do
         obs.obs_property_list_add_int(props_name_source, name, value)
     end
-    obs.obs_properties_add_bool(props, BOOL_ASCII_ONLY, "Allow only Ascii characters")
-    obs.obs_properties_add_bool(props, BOOL_APPEND_GAME_NAME, "Insert Game Name into output")
+
+    obs.obs_properties_add_text(props, OUTPUT_RENAME_WILDCARD, "File Rename", obs.OBS_TEXT_DEFAULT)
 
     return props
 end
@@ -113,6 +141,7 @@ function script_update(settings)
     cfg_screenshot_sub_dir = obs.obs_data_get_string(settings, SCREENSHOT_SUB_DIR)
     cfg_replay_sub_dir = obs.obs_data_get_string(settings, REPLAY_SUB_DIR)
     cfg_recording_sub_dir = obs.obs_data_get_string(settings, RECORDING_SUB_DIR)
+    cfg_output_wildcards = obs.obs_data_get_string(settings, RECORDING_SUB_DIR)
 
     -- update bool values
     cfg_move_recordings = obs.obs_data_get_bool(settings, BOOL_MOVE_RECORDING)
@@ -131,11 +160,10 @@ function script_defaults(settings)
     obs.obs_data_set_default_string(settings, SCREENSHOT_SUB_DIR, DEFAULT_SCREENSHOT_SUB_DIR)
     obs.obs_data_set_default_string(settings, REPLAY_SUB_DIR, DEFAULT_REPLAY_SUB_DIR)
     obs.obs_data_set_default_string(settings, RECORDING_SUB_DIR, DEFAULT_RECORDING_SUB_DIR)
+    obs.obs_data_set_default_string(settings, OUTPUT_RENAME_WILDCARD, DEFAULT_FILE_NAME_WILDCARD)
 
     -- bools
     obs.obs_data_set_default_bool(settings, BOOL_MOVE_RECORDING, DEFAULT_MOVE_RECORDINGS)
-    obs.obs_data_set_default_bool(settings, BOOL_ASCII_ONLY, DEFAULT_ASCII_FILTER)
-    obs.obs_data_set_default_bool(settings, BOOL_APPEND_GAME_NAME, DEFAULT_APPEND_GAME_NAME)
 
     -- lists
     obs.obs_data_set_default_int(settings, NAME_SOURCE, DEFAULT_NAME_SOURCE)
@@ -268,12 +296,53 @@ local function sanitize_string_for_ascii(input)
     return cleaned
 end
 
+local function load_replacements(original_name)
+    -- load the replacement values for the wildcards
+
+    -- get the window title
+    -- store current choice
+    local store = cfg_name_source
+    -- set to executable
+    cfg_name_source = name_source_enum[ENUM_WINDOW_TITLE]
+    replacements[WILDCARD_WINDOW_TITLE] = get_game_name()
+    -- retore current choice
+    cfg_name_source = store
+
+    -- sanatize the window title
+    replacements[WILDCARD_WINDOW_TITLE_ASCII] = sanitize_string_for_ascii(replacements[WILDCARD_WINDOW_TITLE])
+
+    -- get the executable title
+    -- store current choice
+    local store = cfg_name_source
+    -- set to executable
+    cfg_name_source = name_source_enum[ENUM_PROCESS_NAME]
+    replacements[WIDLCARD_EXECUTABLE] = get_game_name()
+    -- retore current choice
+    cfg_name_source = store
+
+    -- sanatize the executable title
+    replacements[WIDLCARD_EXECUTABLE_ASCII] = sanitize_string_for_ascii(replacements[WIDLCARD_EXECUTABLE])
+    -- get original file name
+    replacements[WILDCARD_ORIGINAL_FILE_NAME] = original_name
+end
+
+-- Function to replace wildcards in a string
+local function replace_wildcards(input_string)
+    return (input_string:gsub("%%[weoa]+", replacements))
+end
+
 local function organize(file_path, sub_dir)
     print("base_event(" .. file_path .. "/" .. sub_dir ")")
     -- Moves a given file to a new sub directory
 
     local game_name = get_game_name()
+    local base_path = get_base_path(file_path)
+    local original_file = get_filename(file_path)
     local insert_str = ""
+
+    load_replacements(original_file)
+
+    new_file_name = replace_wildcards(cfg_output_wildcards)
 
     if not game_name then
         return
@@ -287,13 +356,13 @@ local function organize(file_path, sub_dir)
         insert_str = "[" .. game_name .. "]"
     end
 
-    local new_file_path = get_base_path(file_path)
+    local new_file_path = base_path
         .. "/"
         .. sanitize_sub_directory_for_windows(game_name)
         .. "/"
         .. sanitize_sub_directory_for_windows(sub_dir)
         .. "/"
-        .. insert_str .. get_filename(file_path)
+        .. insert_str .. new_file_name
 
     move_file(file_path, new_file_path)
 end
