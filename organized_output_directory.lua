@@ -1,6 +1,11 @@
 local SCRIPT_NAME = "Organized Output Directory"
 local VERSION_STRING = "1.0.3"
 
+-- todo
+--[[
+add back the ascii checkmark for the game folder
+]]
+
 -- requirements
 local OPERATING_SYSTEM_REQUIREMENTS = { "Windows 10/11" }
 local OBS_VERSION_REQUIREMENT = "29.0.0"
