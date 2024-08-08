@@ -1,6 +1,10 @@
 local SCRIPT_NAME = "Organized Output Directory"
 local VERSION_STRING = "1.0.3"
 
+-- requirements
+local OPERATING_SYSTEM_REQUIREMENTS = {"Windows 10/11"}
+local OBS_VERSION_REQUIREMENT = "29.0.0"
+
 local GITHUB_PROJECT_URL = "https://github.com/MrMartin92/obs_organized_output_directory"
 local GITHUB_PROJECT_LICENCE_URL = "https://raw.githubusercontent.com/MrMartin92/obs_organized_output_directory/main/LICENSE"
 local GITHUB_PROJECT_BUG_TRACKER_URL = GITHUB_PROJECT_URL .. "/issues"
@@ -32,18 +36,27 @@ local cfg_name_source
 local obs = obslua
 
 function script_description()
-    return "<h1>" .. SCRIPT_NAME .. "</h1><p>\z
-    With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \z
-    The script automatically creates subdirectories for each game in the output directory. \z
-    To do this, it searches for Window Capture or Game Capture sources in the current scene. \z
-    The last active and hooked source is then used to determine the name of the subdirectory from the window title or the process name.<p>\z
-    You found a bug or you have a feature request? Great! <a href=\"" .. GITHUB_PROJECT_BUG_TRACKER_URL .. "\">Open an issue on GitHub.</a><p>\z
-    ♥️ If you wish, you can support me on <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>. Thank you! 🤗<p>\z
-    <b>🚀 Version:</b> " .. VERSION_STRING .. "<br>\z
-    <b>🧑‍💻 Author:</b> Tobias Lorenz <a href=\"" .. GITHUB_AUTHOR_URL .. "\">[GitHub]</a> <a href=\"" .. TWITCH_AUTHOR_URL .. "\">[Twitch]</a><br>\z
-    <b>🔬 Source:</b> <a href=\"" .. GITHUB_PROJECT_URL .. "\">GitHub.com</a><br>\z
-    <b>🧾 Licence:</b> <a href=\"" .. GITHUB_PROJECT_LICENCE_URL .. "\">MIT</a>"
+    operating_systems_string = table.concat(OPERATING_SYSTEM_REQUIREMENTS, ", ")
+
+    return "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
+    "With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \n" ..
+    "The script automatically creates subdirectories for each game in the output directory. \n" ..
+    "To do this, it searches for Window Capture or Game Capture sources in the current scene. \n" ..
+    "The last active and hooked source is then used to determine the name of the subdirectory from the window title or the process name.<p>\n" ..
+    "You found a bug or you have a feature request? Great! <a href=\"" .. GITHUB_PROJECT_BUG_TRACKER_URL .. "\">Open an issue on GitHub.</a><p>\n" ..
+    "♥️ If you wish, you can support me on <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>. Thank you! 🤗<p>\n" ..
+    "<b>🚀 Version:</b> " .. VERSION_STRING .. "<br>\n" ..
+    "<b>🧑‍💻 Author:</b> Tobias Lorenz <a href=\"" .. GITHUB_AUTHOR_URL .. "\">[GitHub]</a> <a href=\"" .. TWITCH_AUTHOR_URL .. "\">[Twitch]</a><br>\n" ..
+    "<b>🔬 Source:</b> <a href=\"" .. GITHUB_PROJECT_URL .. "\">GitHub.com</a><br>\n" ..
+    "<b>🧾 Licence:</b> <a href=\"" .. GITHUB_PROJECT_LICENCE_URL .. "\">MIT</a><br>\n" ..
+    "<b>📋 Requirements:</b><br>"..
+    "<blockquote>" .. 
+    "Operating Systems: " .. operating_systems_string .. "<br>" .. 
+    "OBS Version: " .. OBS_VERSION_REQUIREMENT .. "<br>" ..
+    "</blockquote>"
+
 end
+
 
 function script_properties()
     -- sets up the settings menu for OBS
@@ -59,7 +72,7 @@ function script_properties()
     for name, value in pairs(name_source_enum) do
         obs.obs_property_list_add_int(props_name_source, name, value)
     end
-    obs.obs_properties_add_bool(props, "ASCII_FILTER", "Filter out non A-z 0-9 or single space characters")
+    obs.obs_properties_add_bool(props, "ASCII_FILTER", "Filter out non A-z 0-9 and non single space characters")
 
     return props
 end
@@ -199,7 +212,7 @@ end
 
 local function filter_ascii(input)
     -- Remove all non-ASCII alphanumeric characters and spaces
-    local cleaned = input:gsub("[^%w%s]", "")
+    local cleaned = input:gsub("[^%w%s]", " ")
     -- Replace multiple spaces with a single space
     cleaned = cleaned:gsub("%s+", " ")
     return cleaned
