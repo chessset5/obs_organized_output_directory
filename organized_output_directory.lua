@@ -89,26 +89,7 @@ function script_description()
     -- Grabs the list of operating systems and turns them into one string
     local operating_systems_string = table.concat(OPERATING_SYSTEM_REQUIREMENTS, ", ")
 
-    -- Final script description
-    return "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
-        "With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \n" ..
-        "The script automatically creates subdirectories for each game in the output directory. \n" ..
-        "To do this, it searches for Window Capture or Game Capture sources in the current scene. \n" ..
-        "The last active and hooked source is then used to determine the name of the subdirectory from the window title or the process name.<p>\n" ..
-        "You found a bug or you have a feature request? Great! <a href=\"" ..
-        GITHUB_PROJECT_BUG_TRACKER_URL .. "\">Open an issue on GitHub.</a><p>\n" ..
-        "♥️ If you wish, you can support me on <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>. Thank you! 🤗<p>\n" ..
-        "<b>🚀 Version:</b> " .. VERSION_STRING .. "<br>\n" ..
-        "<b>🧑‍💻 Author:</b> Tobias Lorenz <a href=\"" ..
-        GITHUB_AUTHOR_URL .. "\">[GitHub]</a> <a href=\"" .. TWITCH_AUTHOR_URL .. "\">[Twitch]</a><br>\n" ..
-        "<b>🔬 Source:</b> <a href=\"" .. GITHUB_PROJECT_URL .. "\">GitHub.com</a><br>\n" ..
-        "<b>🧾 Licence:</b> <a href=\"" .. GITHUB_PROJECT_LICENCE_URL .. "\">MIT</a><br>\n" ..
-        "<b>📋 Requirements:</b>" ..
-        "<blockquote>" ..
-        "Operating Systems: " .. operating_systems_string .. "<br>" ..
-        "OBS Version: " .. OBS_VERSION_REQUIREMENT .. "<br>" ..
-        "</blockquote><br>" ..
-        "<b>🃏 Wildcards:</b>" ..
+    local wild_cards = "<b>🃏 Wildcards:</b>" ..
         "<blockquote>" ..
         WILDCARD_WINDOW_TITLE .. "Window Title" ..
         WILDCARD_WINDOW_TITLE_ASCII .. "Window Title ASCII only" ..
@@ -116,6 +97,18 @@ function script_description()
         WIDLCARD_EXECUTABLE_ASCII .. "Executable Title ASCII only" ..
         WILDCARD_ORIGINAL_FILE_NAME .. "Original Output File Name" ..
         "</blockquote>"
+
+    -- Final script description
+    return "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
+        "With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \n" ..
+        "The script automatically creates subdirectories for each game in the output directory. \n" ..
+        "To do this, it searches for Window Capture or Game Capture sources in the current scene. \n" ..
+        "The last active and hooked source is then used to determine the name of the subdirectory from the window title or the process name.<p>\n" ..
+        "You found a bug or you have a feature request? <br><a href=\"" ..
+        GITHUB_PROJECT_BUG_TRACKER_URL .. "\">Open an issue on GitHub.</a><p>\n" ..
+        "♥️ If you wish, you can support me on <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>. Thank you! 🤗<p>\n" ..
+        "<b>🚀 Version:</b> " .. VERSION_STRING .. "<br>\n" ..
+        ""
 end
 
 function script_properties()
@@ -314,7 +307,7 @@ local function load_replacements(original_name)
 
     -- store current choice
     local store = cfg_name_source
-    
+
     -- get the window title
     -- set to executable
     cfg_name_source = name_source_enum[ENUM_WINDOW_TITLE]
