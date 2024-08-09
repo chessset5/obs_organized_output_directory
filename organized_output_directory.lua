@@ -20,11 +20,11 @@ local TWITCH_AUTHOR_URL = "https://twitch.tv/MrMartin_"
 local KOFI_URL = "https://ko-fi.com/MrMartin_"
 
 -- wildcards
-local WILDCARD_WINDOW_TITLE = "%%w"
-local WILDCARD_WINDOW_TITLE_ASCII = "%%wa"
-local WIDLCARD_EXECUTABLE = "%%e"
-local WIDLCARD_EXECUTABLE_ASCII = "%%ea"
-local WILDCARD_ORIGINAL_FILE_NAME = "%%o"
+local WILDCARD_WINDOW_TITLE = "%w"
+local WILDCARD_WINDOW_TITLE_ASCII = "%wa"
+local WIDLCARD_EXECUTABLE = "%e"
+local WIDLCARD_EXECUTABLE_ASCII = "%ea"
+local WILDCARD_ORIGINAL_FILE_NAME = "%o"
 
 -- WildCard replacements
 local replacements = {
@@ -49,23 +49,26 @@ local name_source_enum = {
 -- Default values for the script
 local DEFAULT_SCREENSHOT_SUB_DIR = "screenshots"
 local DEFAULT_REPLAY_SUB_DIR = "replays"
-local DEFAULT_RECORDING_SUB_DIR = "recordings"
 local DEFAULT_MOVE_RECORDINGS = true
+local DEFAULT_RECORDING_SUB_DIR = "recordings"
+local DEFAULT_NAME_SOURCE = name_source_enum["Window Title"]
 local DEFAULT_ASCII_FILTER = true
 local DEFAULT_APPEND_GAME_NAME = true
-local DEFAULT_NAME_SOURCE = name_source_enum["Window Title"]
 local DEFAULT_FILE_NAME_WILDCARD = WILDCARD_ORIGINAL_FILE_NAME
 local DEFAULT_FOLDER_NAME_WILDCARD = WILDCARD_WINDOW_TITLE_ASCII
+local DEFAULT_ADVANCED_SETTINGS = false
 
 -- GUI settings
 local SCREENSHOT_SUB_DIR = "SCREENSHOT_SUB_DIR"
 local REPLAY_SUB_DIR = "REPLAY_SUB_DIR"
-local RECORDING_SUB_DIR = "RECORDING_SUB_DIR"
 local BOOL_MOVE_RECORDING = "MOVE_RECORDINGS"
+local RECORDING_SUB_DIR = "RECORDING_SUB_DIR"
+local NAME_SOURCE = "NAME_SOURCE"
 local BOOL_ASCII_ONLY = "ASCII_ONLY"
 local BOOL_APPEND_GAME_NAME = "APPEND_NAME"
-local NAME_SOURCE = "NAME_SOURCE"
-local OUTPUT_RENAME_WILDCARD = "WILD_CARDS"
+local FOLDER_NAME_WILDCARD = "FOLDER_NAME"
+local FILE_NAME_WILDCARD = "FILE_NAME"
+local BOOL_ADVANCED_SETTINGS = "ADVANCED_SETTINGS"
 
 
 -- cfg short for config short for congifuration
@@ -74,11 +77,14 @@ local cfg_screenshot_sub_dir
 local cfg_replay_sub_dir
 local cfg_recording_sub_dir
 local cfg_name_source
-local cfg_output_wildcards
+local cfg_file_name_wildcards
+local cfg_folder_name_wildcards
+
 -- bools
 local cfg_move_recordings
 local cfg_ascii_filter
 local cfg_append_name
+local cfg_advanced_settings = false
 
 -- grab OBS's lua script global object
 local obs = obslua
@@ -89,26 +95,49 @@ function script_description()
     -- Grabs the list of operating systems and turns them into one string
     local operating_systems_string = table.concat(OPERATING_SYSTEM_REQUIREMENTS, ", ")
 
+    -- requirements
+    local requirements = "<b>📋 Requirements:</b>" ..
+        "<blockquote>" ..
+        "Operating Systems: " .. operating_systems_string .. "<br>" ..
+        "OBS Version: " .. OBS_VERSION_REQUIREMENT .. "<br>" ..
+        "</blockquote>" .. ""
+
+    -- advanced wildcards
     local wild_cards = "<b>🃏 Wildcards:</b>" ..
         "<blockquote>" ..
-        WILDCARD_WINDOW_TITLE .. "Window Title" ..
-        WILDCARD_WINDOW_TITLE_ASCII .. "Window Title ASCII only" ..
-        WIDLCARD_EXECUTABLE .. "Executable Title" ..
-        WIDLCARD_EXECUTABLE_ASCII .. "Executable Title ASCII only" ..
-        WILDCARD_ORIGINAL_FILE_NAME .. "Original Output File Name" ..
+        WILDCARD_WINDOW_TITLE .. " - Window Title\n" ..
+        WILDCARD_WINDOW_TITLE_ASCII .. " - Window Title ASCII only\n" ..
+        WIDLCARD_EXECUTABLE .. " - Executable Title\n" ..
+        WIDLCARD_EXECUTABLE_ASCII .. " - Executable Title ASCII only\n" ..
+        WILDCARD_ORIGINAL_FILE_NAME .. " - Original Output File Name\n" ..
         "</blockquote>"
 
+    local description_advanced = "<h1>Advanced settings</h1><br>" ..
+        requirements .. "<br>" ..
+        "wildcard naming scheme:<br>" ..
+        wild_cards ..
+        "\n\nWildcards only work when advanced settings are enabled"
+
+
     -- Final script description
-    return "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
+    local description_non_advanced = "<h1>" .. SCRIPT_NAME .. "</h1><p>\n" ..
         "With \"" .. SCRIPT_NAME .. "\" you can create order in your output directory. \n" ..
         "The script automatically creates subdirectories for each game in the output directory. \n" ..
         "To do this, it searches for Window Capture or Game Capture sources in the current scene. \n" ..
         "The last active and hooked source is then used to determine the name of the subdirectory from the window title or the process name.<p>\n" ..
+        "<i>See Read Me for advanced settings wild cards</i><br>" ..
         "You found a bug or you have a feature request? <br><a href=\"" ..
         GITHUB_PROJECT_BUG_TRACKER_URL .. "\">Open an issue on GitHub.</a><p>\n" ..
-        "♥️ If you wish, you can support me on <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>. Thank you! 🤗<p>\n" ..
+        "♥️ If you wish to support Tobias, see here <a href=\"" .. KOFI_URL .. "\">Ko-fi</a>.<br>🤗 Thank you! 🤗<p>\n" ..
         "<b>🚀 Version:</b> " .. VERSION_STRING .. "<br>\n" ..
         ""
+
+    -- nvm this does not work...
+    if cfg_advanced_settings == false then
+        return description_non_advanced
+    else
+        return description_advanced
+    end
 end
 
 function script_properties()
@@ -120,20 +149,30 @@ function script_properties()
     obs.obs_properties_add_bool(props, BOOL_MOVE_RECORDING, "Organize recordings")
     obs.obs_properties_add_text(props, RECORDING_SUB_DIR, "Recording directory name", obs.OBS_TEXT_DEFAULT)
 
-    local props_name_source = obs.obs_properties_add_list(
-        props,
-        NAME_SOURCE,
-        "Name source",
-        obs.OBS_COMBO_TYPE_LIST,
-        obs.OBS_COMBO_FORMAT_INT
-    )
+    -- set up non advanced menu, no wildcards
+    if cfg_advanced_settings == false then
+        local props_name_source = obs.obs_properties_add_list(
+            props,
+            NAME_SOURCE,
+            "Name source",
+            obs.OBS_COMBO_TYPE_LIST,
+            obs.OBS_COMBO_FORMAT_INT
+        )
 
-    for name, value in pairs(name_source_enum) do
-        obs.obs_property_list_add_int(props_name_source, name, value)
+        for name, value in pairs(name_source_enum) do
+            obs.obs_property_list_add_int(props_name_source, name, value)
+        end
+        obs.obs_properties_add_bool(props, BOOL_ASCII_ONLY, "Allow only Ascii characters")
+        obs.obs_properties_add_bool(props, BOOL_APPEND_GAME_NAME, "Insert Game Name into output")
+    else
+        -- todo figure out a way to show the wildcards when hoved over
+
+        -- advanced menu, only wildcards
+        obs.obs_properties_add_text(props, FOLDER_NAME_WILDCARD, "Application Folder Format", obs.OBS_TEXT_DEFAULT)
+        obs.obs_properties_add_text(props, FILE_NAME_WILDCARD, "File Name Format", obs.OBS_TEXT_DEFAULT)
     end
-    obs.obs_properties_add_bool(props, BOOL_ASCII_ONLY, "Allow only Ascii characters")
-    obs.obs_properties_add_bool(props, BOOL_APPEND_GAME_NAME, "Insert Game Name into output")
-
+    obs.obs_properties_add_bool(props, BOOL_ADVANCED_SETTINGS,
+        ":::: Advanced settings ::::\nreload script to see changes")
     return props
 end
 
@@ -145,12 +184,13 @@ function script_update(settings)
     cfg_screenshot_sub_dir = obs.obs_data_get_string(settings, SCREENSHOT_SUB_DIR)
     cfg_replay_sub_dir = obs.obs_data_get_string(settings, REPLAY_SUB_DIR)
     cfg_recording_sub_dir = obs.obs_data_get_string(settings, RECORDING_SUB_DIR)
-    cfg_output_wildcards = obs.obs_data_get_string(settings, RECORDING_SUB_DIR)
+    cfg_file_name_wildcards = obs.obs_data_get_string(settings, RECORDING_SUB_DIR)
 
     -- update bool values
     cfg_move_recordings = obs.obs_data_get_bool(settings, BOOL_MOVE_RECORDING)
     cfg_ascii_filter = obs.obs_data_get_bool(settings, BOOL_ASCII_ONLY)
     cfg_append_name = obs.obs_data_get_bool(settings, BOOL_APPEND_GAME_NAME)
+    cfg_advanced_settings = obs.obs_data_get_bool(settings, BOOL_ADVANCED_SETTINGS)
 
     -- update integer values
     cfg_name_source = obs.obs_data_get_int(settings, NAME_SOURCE)
@@ -164,12 +204,14 @@ function script_defaults(settings)
     obs.obs_data_set_default_string(settings, SCREENSHOT_SUB_DIR, DEFAULT_SCREENSHOT_SUB_DIR)
     obs.obs_data_set_default_string(settings, REPLAY_SUB_DIR, DEFAULT_REPLAY_SUB_DIR)
     obs.obs_data_set_default_string(settings, RECORDING_SUB_DIR, DEFAULT_RECORDING_SUB_DIR)
-    obs.obs_data_set_default_string(settings, OUTPUT_RENAME_WILDCARD, DEFAULT_FILE_NAME_WILDCARD)
+    obs.obs_data_set_default_string(settings, FILE_NAME_WILDCARD, DEFAULT_FILE_NAME_WILDCARD)
+    obs.obs_data_set_default_string(settings, FOLDER_NAME_WILDCARD, DEFAULT_FOLDER_NAME_WILDCARD)
 
     -- bools
     obs.obs_data_set_default_bool(settings, BOOL_MOVE_RECORDING, DEFAULT_MOVE_RECORDINGS)
     obs.obs_data_set_default_bool(settings, BOOL_ASCII_ONLY, DEFAULT_ASCII_FILTER)
     obs.obs_data_set_default_bool(settings, BOOL_APPEND_GAME_NAME, DEFAULT_APPEND_GAME_NAME)
+    obs.obs_data_set_default_bool(settings, BOOL_ADVANCED_SETTINGS, DEFAULT_ADVANCED_SETTINGS)
 
     -- lists
     obs.obs_data_set_default_int(settings, NAME_SOURCE, DEFAULT_NAME_SOURCE)
@@ -345,7 +387,7 @@ local function organize(file_path, sub_dir)
 
     load_replacements(original_file)
 
-    new_file_name = replace_wildcards(cfg_output_wildcards)
+    new_file_name = replace_wildcards(cfg_file_name_wildcards)
 
     if not game_name then
         return
