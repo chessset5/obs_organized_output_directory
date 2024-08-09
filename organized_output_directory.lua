@@ -312,29 +312,26 @@ end
 local function load_replacements(original_name)
     -- load the replacement values for the wildcards
 
-    -- get the window title
     -- store current choice
     local store = cfg_name_source
+    
+    -- get the window title
     -- set to executable
     cfg_name_source = name_source_enum[ENUM_WINDOW_TITLE]
     replacements[WILDCARD_WINDOW_TITLE] = get_game_name()
-    -- retore current choice
-    cfg_name_source = store
-
     -- sanatize the window title
     replacements[WILDCARD_WINDOW_TITLE_ASCII] = sanitize_string_for_ascii(replacements[WILDCARD_WINDOW_TITLE])
 
     -- get the executable title
-    -- store current choice
-    local store = cfg_name_source
     -- set to executable
     cfg_name_source = name_source_enum[ENUM_PROCESS_NAME]
     replacements[WIDLCARD_EXECUTABLE] = get_game_name()
+    -- sanatize the executable title
+    replacements[WIDLCARD_EXECUTABLE_ASCII] = sanitize_string_for_ascii(replacements[WIDLCARD_EXECUTABLE])
+
     -- retore current choice
     cfg_name_source = store
 
-    -- sanatize the executable title
-    replacements[WIDLCARD_EXECUTABLE_ASCII] = sanitize_string_for_ascii(replacements[WIDLCARD_EXECUTABLE])
     -- get original file name
     replacements[WILDCARD_ORIGINAL_FILE_NAME] = original_name
 end
